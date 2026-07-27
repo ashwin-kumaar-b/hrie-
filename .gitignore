@@ -1,0 +1,12 @@
+# Virtual Environment
+Lib/
+Include/
+Scripts/
+pyvenv.cfg
+__pycache__/
+
+# IDEs & OS
+.vscode/
+.idea/
+.DS_Store:
+*.pyc
