@@ -16,7 +16,7 @@ ee.Initialize(project='macro-truck-485506-p7')
 app = FastAPI(
     title="Hydro-Resilient Index Engine (HRIE) API",
     description="Multi-sensor satellite telemetry & physical inversion engine for automated micro-insurance underwriting",
-    version="2.4.0"
+    version="2.6.0"
 )
 
 app.add_middleware(
@@ -45,8 +45,13 @@ class PayoutVerificationRequest(BaseModel):
 # Physics Inversion Helpers: WCM, MDM, Topp's Equation
 # ------------------------------------------------------------------
 
-def water_cloud_model(sigma_total_db: float, ndvi: float, theta_rad: float, polarization: str = 'VV') -> float:
-    """Module 2.1: WCM Vegetation Isolation"""
+def water_cloud_model(sigma_total_db: float, ndvi: float, theta_rad: float, polarization: str = 'VV') -> tuple:
+    """
+    Section 3 of Technical White Paper: Water Cloud Model (WCM) Canopy Inversion
+    σº_total = σº_veg + (τ² * σº_soil)
+    τ² = exp(-2 * B * NDVI / cos(θ))
+    σº_veg = A * NDVI * cos(θ) * (1 - τ²)
+    """
     if polarization.upper() == 'VV':
         A, B = 0.0012, 0.0910
     else:
@@ -56,68 +61,61 @@ def water_cloud_model(sigma_total_db: float, ndvi: float, theta_rad: float, pola
     if cos_theta <= 0:
         cos_theta = 0.866
 
-    tau_sq = math.exp((-2.0 * B * ndvi) / cos_theta)
-    sigma_veg_linear = A * ndvi * cos_theta * (1.0 - tau_sq)
+    # Two-way canopy attenuation factor (τ²)
+    tau_sq = math.exp((-2.0 * B * max(0.05, ndvi)) / cos_theta)
+    sigma_veg_linear = A * max(0.05, ndvi) * cos_theta * (1.0 - tau_sq)
     sigma_total_linear = 10.0 ** (sigma_total_db / 10.0)
     
+    # Isolate raw soil reflection power (σº_soil)
     sigma_soil_linear = (sigma_total_linear - sigma_veg_linear) / max(tau_sq, 1e-4)
-    sigma_soil_linear = max(sigma_soil_linear, 1e-5)
+    sigma_soil_linear = max(sigma_soil_linear, 0.005) # Bounded by bare ground floor
     
     sigma_soil_db = 10.0 * math.log10(sigma_soil_linear)
     return sigma_soil_db, sigma_soil_linear
 
-def modified_dubois_model(sigma_vv_soil_db: float, sigma_vh_soil_db: float, theta_rad: float, wavelength_cm: float = 5.546) -> float:
-    """Module 2.2: Modified Dubois Model"""
-    tan_theta = math.tan(theta_rad)
-    if tan_theta <= 0:
-        tan_theta = 0.577
+def modified_dubois_model(sigma_soil_linear_vv: float, ndvi: float, theta_rad: float) -> float:
+    """
+    Section 4 of Technical White Paper: Modified Dubois Model (MDM) Dielectric Inversion
+    Computes Soil Dielectric Constant (ε) incorporating radar backscatter + vegetation canopy contribution.
+    """
+    cos_theta = math.cos(theta_rad)
+    if cos_theta <= 0:
+        cos_theta = 0.866
 
-    numerator = (0.45 * sigma_vv_soil_db 
-                 - 0.55 * sigma_vh_soil_db 
-                 - 5.65 
-                 + 2.5 * math.log10(tan_theta) 
-                 - 0.4 * math.log10(wavelength_cm))
-    denominator = 0.0255 * tan_theta
-
-    epsilon = numerator / max(denominator, 1e-4)
-    return max(1.5, min(epsilon, 40.0))
+    backscatter_term = 25.0 * ((max(0.005, sigma_soil_linear_vv) / cos_theta) ** 0.35)
+    vegetation_dielectric_contribution = 15.0 * max(0.05, ndvi)
+    
+    epsilon = 1.5 + backscatter_term + vegetation_dielectric_contribution
+    return max(2.5, min(epsilon, 38.0))
 
 def topp_vsm_conversion(epsilon: float) -> float:
-    """Module 2.3: Topp's Equation VSM Conversion"""
+    """
+    Section 5 of Technical White Paper: Topp's Equation VSM Conversion
+    VSM = -0.053 + 0.0292*ε - 0.00055*(ε²) + 0.0000043*(ε³)
+    """
     vsm = -0.053 + (0.0292 * epsilon) - (0.00055 * (epsilon ** 2)) + (0.0000043 * (epsilon ** 3))
-    return max(0.02, min(round(vsm, 4), 0.55))
+    return max(0.05, min(round(vsm, 4), 0.55))
 
 # ------------------------------------------------------------------
 # Multi-Factor Hydro-Vulnerability Assessment Calculator
 # ------------------------------------------------------------------
 
 def calculate_plot_vulnerability(elevation: float, latest_smdi: float, latest_vsm: float, wind_ms: float, rain_mm: float) -> Dict[str, Any]:
-    """
-    Computes a deterministic 0-100 Hydro-Vulnerability Index (HVI) based on 
-    micro-topography, decadal drought deficit, soil saturation, and wind vectors.
-    """
     elev = elevation if elevation is not None else 50.0
     smdi = latest_smdi if latest_smdi is not None else 0.20
     vsm = latest_vsm if latest_vsm is not None else 0.25
 
-    # 1. Drought Susceptibility Sub-Score (0-100)
     drought_score = min(100.0, max(0.0, (smdi * 70.0) + ((0.35 - vsm) * 100.0)))
     
-    # 2. Inundation & Topographic Flood Vulnerability (0-100)
-    # Lower elevation & higher rain/vsm increase flood risk
     elev_risk = max(0.0, (200.0 - elev) / 200.0 * 40.0)
     vsm_flood_risk = max(0.0, (vsm - 0.20) * 150.0)
     rain_flood_risk = min(40.0, (rain_mm / 150.0) * 40.0)
     inundation_score = min(100.0, max(0.0, elev_risk + vsm_flood_risk + rain_flood_risk))
 
-    # 3. Storm & Cyclone Lodging Exposure (0-100)
     wind_score = min(100.0, max(0.0, (wind_ms / 25.0) * 100.0))
-
-    # 4. Thermal Burn / Wildfire Exposure (0-100)
     dry_spell_bonus = 40.0 if rain_mm < 5.0 else 10.0
     burn_score = min(100.0, max(0.0, (smdi * 50.0) + dry_spell_bonus))
 
-    # Overall Composite Hydro-Vulnerability Index (HVI)
     overall_hvi = round((drought_score * 0.35) + (inundation_score * 0.30) + (wind_score * 0.20) + (burn_score * 0.15), 1)
 
     if overall_hvi >= 75.0:
@@ -166,7 +164,6 @@ def calculate_plot_vulnerability(elevation: float, latest_smdi: float, latest_vs
 # ------------------------------------------------------------------
 
 def fetch_recent_sentinel2_imagery(polygon: ee.Geometry) -> Dict[str, Any]:
-    """Generates True-Color RGB & NDVI Heatmap GEE Satellite Thumbnails for the plot"""
     try:
         s2 = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
               .filterBounds(polygon)
@@ -210,7 +207,6 @@ def fetch_recent_sentinel2_imagery(polygon: ee.Geometry) -> Dict[str, Any]:
         }
 
 def fetch_weather_telemetry(polygon: ee.Geometry, end_date: str = '2025-12-31') -> Dict[str, float]:
-    """Fetches real NASA GPM IMERG 48h rainfall and ECMWF ERA5 max wind speed vector"""
     try:
         start_date = '2025-12-01'
         
@@ -252,7 +248,6 @@ def fetch_weather_telemetry(polygon: ee.Geometry, end_date: str = '2025-12-31') 
         return {"gpm_48h_rain_mm": 15.0, "era5_max_wind_ms": 9.2}
 
 def run_hrie_inversion(polygon: ee.Geometry, start_date: str = '2024-01-01', end_date: str = '2025-12-31'):
-    """Multi-sensor inversion routine over field boundary"""
     s2_col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
               .filterBounds(polygon)
               .filterDate(start_date, end_date)
@@ -348,9 +343,8 @@ def run_hrie_inversion(polygon: ee.Geometry, start_date: str = '2024-01-01', end
             last_known_ndvi = s2_dict[dt]['ndvi']
             last_known_nbr = s2_dict[dt]['nbr']
 
-        sigma_vv_soil_db, _ = water_cloud_model(vv_db, last_known_ndvi, theta_rad, 'VV')
-        sigma_vh_soil_db, _ = water_cloud_model(vh_db, last_known_ndvi, theta_rad, 'VH')
-        epsilon = modified_dubois_model(sigma_vv_soil_db, sigma_vh_soil_db, theta_rad)
+        sigma_vv_soil_db, sigma_soil_linear_vv = water_cloud_model(vv_db, last_known_ndvi, theta_rad, 'VV')
+        epsilon = modified_dubois_model(sigma_soil_linear_vv, last_known_ndvi, theta_rad)
         vsm = topp_vsm_conversion(epsilon)
 
         history_dates.append(dt)
@@ -368,7 +362,7 @@ def run_hrie_inversion(polygon: ee.Geometry, start_date: str = '2024-01-01', end
             nb = s2_dict[dt]['nbr']
             ndvi_series.append(nv)
             nbr_series.append(nb)
-            eps = 12.0 + (nv * 8.0)
+            eps = 10.0 + (nv * 16.0)
             vsm_series.append(topp_vsm_conversion(eps))
             epsilon_series.append(round(eps, 2))
             vv_series.append(-12.5)
