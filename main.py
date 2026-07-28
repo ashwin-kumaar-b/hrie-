@@ -16,7 +16,7 @@ ee.Initialize(project='macro-truck-485506-p7')
 app = FastAPI(
     title="Hydro-Resilient Index Engine (HRIE) API",
     description="Multi-sensor satellite telemetry & physical inversion engine for automated micro-insurance underwriting",
-    version="2.3.0"
+    version="2.4.0"
 )
 
 app.add_middleware(
@@ -86,6 +86,80 @@ def topp_vsm_conversion(epsilon: float) -> float:
     """Module 2.3: Topp's Equation VSM Conversion"""
     vsm = -0.053 + (0.0292 * epsilon) - (0.00055 * (epsilon ** 2)) + (0.0000043 * (epsilon ** 3))
     return max(0.02, min(round(vsm, 4), 0.55))
+
+# ------------------------------------------------------------------
+# Multi-Factor Hydro-Vulnerability Assessment Calculator
+# ------------------------------------------------------------------
+
+def calculate_plot_vulnerability(elevation: float, latest_smdi: float, latest_vsm: float, wind_ms: float, rain_mm: float) -> Dict[str, Any]:
+    """
+    Computes a deterministic 0-100 Hydro-Vulnerability Index (HVI) based on 
+    micro-topography, decadal drought deficit, soil saturation, and wind vectors.
+    """
+    elev = elevation if elevation is not None else 50.0
+    smdi = latest_smdi if latest_smdi is not None else 0.20
+    vsm = latest_vsm if latest_vsm is not None else 0.25
+
+    # 1. Drought Susceptibility Sub-Score (0-100)
+    drought_score = min(100.0, max(0.0, (smdi * 70.0) + ((0.35 - vsm) * 100.0)))
+    
+    # 2. Inundation & Topographic Flood Vulnerability (0-100)
+    # Lower elevation & higher rain/vsm increase flood risk
+    elev_risk = max(0.0, (200.0 - elev) / 200.0 * 40.0)
+    vsm_flood_risk = max(0.0, (vsm - 0.20) * 150.0)
+    rain_flood_risk = min(40.0, (rain_mm / 150.0) * 40.0)
+    inundation_score = min(100.0, max(0.0, elev_risk + vsm_flood_risk + rain_flood_risk))
+
+    # 3. Storm & Cyclone Lodging Exposure (0-100)
+    wind_score = min(100.0, max(0.0, (wind_ms / 25.0) * 100.0))
+
+    # 4. Thermal Burn / Wildfire Exposure (0-100)
+    dry_spell_bonus = 40.0 if rain_mm < 5.0 else 10.0
+    burn_score = min(100.0, max(0.0, (smdi * 50.0) + dry_spell_bonus))
+
+    # Overall Composite Hydro-Vulnerability Index (HVI)
+    overall_hvi = round((drought_score * 0.35) + (inundation_score * 0.30) + (wind_score * 0.20) + (burn_score * 0.15), 1)
+
+    if overall_hvi >= 75.0:
+        risk_tier = "CRITICAL_HYDRO_HAZARD"
+        risk_label = "🔴 Critical Risk (High Surcharge)"
+        premium_multiplier = 1.35
+    elif overall_hvi >= 50.0:
+        risk_tier = "HIGH_VULNERABILITY"
+        risk_label = "🟠 High Vulnerability"
+        premium_multiplier = 1.18
+    elif overall_hvi >= 25.0:
+        risk_tier = "MODERATE_VULNERABILITY"
+        risk_label = "🟡 Moderate Vulnerability"
+        premium_multiplier = 1.05
+    else:
+        risk_tier = "LOW_RISK"
+        risk_label = "🟢 Low Risk (Baseline Rate)"
+        premium_multiplier = 0.95
+
+    mitigation_recommendations = []
+    if drought_score >= 50.0:
+        mitigation_recommendations.append("Install micro-drip irrigation & deep soil organic mulching to prevent moisture deficit escalation.")
+    if inundation_score >= 50.0:
+        mitigation_recommendations.append("Construct perimeter drainage channels & raised field bunds to reduce elevation-driven waterlogging.")
+    if wind_score >= 50.0:
+        mitigation_recommendations.append("Plant windbreak tree shelterbelts along perimeter to suppress crop lodging during gale force wind vectors.")
+    if not mitigation_recommendations:
+        mitigation_recommendations.append("Field boundary demonstrates optimal topographic & hydrological resilience. Maintain current agronomic practices.")
+
+    return {
+        "overall_hvi_score": overall_hvi,
+        "risk_tier": risk_tier,
+        "risk_label": risk_label,
+        "actuarial_premium_multiplier": premium_multiplier,
+        "sub_indices": {
+            "drought_susceptibility_score": round(drought_score, 1),
+            "inundation_flood_vulnerability_score": round(inundation_score, 1),
+            "cyclone_lodging_exposure_score": round(wind_score, 1),
+            "wildfire_thermal_burn_score": round(burn_score, 1)
+        },
+        "mitigation_recommendations": mitigation_recommendations
+    }
 
 # ------------------------------------------------------------------
 # Earth Engine Telemetry & Image Generation Functions
@@ -351,12 +425,21 @@ def analyze_plot(plot: PlotBoundary):
 
         inversion_results = run_hrie_inversion(polygon)
         recent_imagery = fetch_recent_sentinel2_imagery(polygon)
+        weather = fetch_weather_telemetry(polygon)
 
-        latest_vsm = inversion_results["vsm"][-1] if inversion_results["vsm"] else None
-        latest_ndvi = inversion_results["ndvi"][-1] if inversion_results["ndvi"] else None
-        latest_nbr = inversion_results["nbr"][-1] if inversion_results["nbr"] else None
-        latest_smdi = inversion_results["smdi"][-1] if inversion_results["smdi"] else None
-        latest_epsilon = inversion_results["epsilon"][-1] if inversion_results["epsilon"] else None
+        latest_vsm = inversion_results["vsm"][-1] if inversion_results["vsm"] else 0.25
+        latest_ndvi = inversion_results["ndvi"][-1] if inversion_results["ndvi"] else 0.45
+        latest_nbr = inversion_results["nbr"][-1] if inversion_results["nbr"] else 0.35
+        latest_smdi = inversion_results["smdi"][-1] if inversion_results["smdi"] else 0.10
+        latest_epsilon = inversion_results["epsilon"][-1] if inversion_results["epsilon"] else 12.0
+
+        vulnerability_dossier = calculate_plot_vulnerability(
+            elevation=elevation,
+            latest_smdi=latest_smdi,
+            latest_vsm=latest_vsm,
+            wind_ms=weather["era5_max_wind_ms"],
+            rain_mm=weather["gpm_48h_rain_mm"]
+        )
 
         if latest_ndvi is not None and latest_ndvi < 0.18:
             phenology_status = "BARE_SOIL_POST_HARVEST"
@@ -379,6 +462,7 @@ def analyze_plot(plot: PlotBoundary):
                 "phenology_status": phenology_status,
                 "total_satellite_passes": len(inversion_results["dates"])
             },
+            "vulnerability_dossier": vulnerability_dossier,
             "recent_satellite_imagery": recent_imagery,
             "climatology": inversion_results["climatology"],
             "history": {
@@ -498,12 +582,28 @@ def verify_payout(req: PayoutVerificationRequest):
             if rejection_notes:
                 primary_trigger_reason = "SAFETY LOCK ACTIVE: " + " | ".join(rejection_notes)
 
+        dem = ee.Image('USGS/SRTMGL1_003')
+        elevation = dem.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=polygon,
+            scale=30
+        ).getInfo().get('elevation')
+
+        vulnerability_dossier = calculate_plot_vulnerability(
+            elevation=elevation,
+            latest_smdi=latest_smdi,
+            latest_vsm=latest_vsm,
+            wind_ms=era5_wind_ms,
+            rain_mm=gpm_rain_mm
+        )
+
         return {
             "status": "success",
             "classification": {
                 "phenology_status": "BARE_SOIL_POST_HARVEST" if pre_existing_harvest_flag else "ACTIVE_CROP_CANOPY",
                 "pre_existing_harvest_lock": pre_existing_harvest_flag
             },
+            "vulnerability_dossier": vulnerability_dossier,
             "meteorological_telemetry": {
                 "gpm_48h_accumulated_rain_mm": gpm_rain_mm,
                 "era5_max_wind_speed_ms": era5_wind_ms

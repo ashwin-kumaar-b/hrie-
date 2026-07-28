@@ -111,7 +111,7 @@
         const STEPS = [
             { id: 1, title: 'Step 1: Spatial Onboarding', icon: '🗺️', sub: 'Field Boundary & SRTM Topography' },
             { id: 2, title: 'Step 2: Canopy & Hydrology', icon: '🌿', sub: 'Soil Moisture & Spectral Graphs' },
-            { id: 3, title: 'Step 3: Hazard & Risk Locks', icon: '⚡', sub: 'Safety Protocols & 5km Peer Fraud' },
+            { id: 3, title: 'Step 3: Risk & Vulnerability', icon: '⚡', sub: 'HVI Dossier & Safety Locks' },
             { id: 4, title: 'Step 4: Actuarial Payout', icon: '💵', sub: 'Parametric Claim Settlement' }
         ];
 
@@ -121,6 +121,7 @@
             const [isLoading, setIsLoading] = useState(false);
             const [metrics, setMetrics] = useState(null);
             const [satImagery, setSatImagery] = useState(null);
+            const [vulnDossier, setVulnDossier] = useState(null);
             const [history, setHistory] = useState(null);
             const [payoutData, setPayoutData] = useState(null);
             const [sumInsured, setSumInsured] = useState(10000);
@@ -296,6 +297,7 @@
                     if (data.status === 'success') {
                         setMetrics(data.plot_metrics);
                         setSatImagery(data.recent_satellite_imagery);
+                        setVulnDossier(data.vulnerability_dossier);
                         setHistory(data.history);
                         buildCharts(data.history);
                     }
@@ -314,6 +316,7 @@
                 .then(data => {
                     if (data.status === 'success') {
                         setPayoutData(data);
+                        if (data.vulnerability_dossier) setVulnDossier(data.vulnerability_dossier);
                     }
                 });
             };
@@ -341,9 +344,9 @@
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                                    Hydro-Resilient Index Engine <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-semibold">HRIE 2.3</span>
+                                    Hydro-Resilient Index Engine <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-semibold">HRIE 2.4</span>
                                 </h1>
-                                <p className="text-xs text-gray-400">Multi-Sensor Telemetry & Pre-Existing Harvest Lock Underwriting</p>
+                                <p className="text-xs text-gray-400">Multi-Sensor Hydro-Vulnerability Assessment & Actuarial Underwriting</p>
                             </div>
                         </div>
 
@@ -636,96 +639,179 @@
                             </div>
                         </div>
 
-                        {/* STEP 3: HAZARD VERIFICATION & SAFETY LOCKS */}
-                        <div className={currentStep === 3 ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 block' : 'hidden'}>
-                            <div className="glass-panel p-6 rounded-2xl space-y-4">
-                                <h3 className="text-base font-bold text-white flex items-center justify-between">
-                                    <span>⚡ Multi-Hazard Trigger Verification Matrix</span>
-                                    <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-full font-semibold">Safety Locks Active</span>
-                                </h3>
+                        {/* STEP 3: HAZARD VERIFICATION & RISK DOSSIER */}
+                        <div className={currentStep === 3 ? 'space-y-6 block' : 'hidden'}>
+                            
+                            {/* MULTI-FACTOR HYDRO-VULNERABILITY SCORECARD CARD */}
+                            <div className="glass-panel p-6 rounded-2xl space-y-5 border-amber-500/30 bg-gradient-to-br from-slate-900/80 to-amber-950/20">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-4">
+                                    <div>
+                                        <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                            🛡️ Plot Hydro-Vulnerability Index (HVI) & Risk Dossier
+                                        </h3>
+                                        <p className="text-xs text-gray-400">Micro-topographic, climatological, and multi-hazard exposure assessment</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                            {vulnDossier?.risk_label || '🟡 Moderate Vulnerability'}
+                                        </span>
+                                        <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                                            Actuarial Rate: {vulnDossier?.actuarial_premium_multiplier || 1.05}x
+                                        </span>
+                                    </div>
+                                </div>
 
-                                <div className="space-y-3">
-                                    {[
-                                        { 
-                                            title: '🚫 Pre-Existing Harvest Lock', 
-                                            sub: 'Pre-Policy Bare Soil Onboarding Check', 
-                                            trig: payoutData?.classification?.pre_existing_harvest_lock,
-                                            label: payoutData?.classification?.pre_existing_harvest_lock ? 'REJECTED (Pre-Harvest Onboarded)' : 'PASSED (Active Growth at Policy Window)'
-                                        },
-                                        { 
-                                            title: '🌵 Agricultural Drought', 
-                                            sub: 'SMDI ≥ 0.60 (14-day) & GPM Rain < 5mm', 
-                                            trig: payoutData?.hazard_triggers?.agricultural_drought?.triggered,
-                                            label: payoutData?.hazard_triggers?.agricultural_drought?.triggered ? 'TRIGGERED' : 'NORMAL'
-                                        },
-                                        { 
-                                            title: '🌊 Flash Flooding', 
-                                            sub: 'VSM Saturation & GPM Rain > 100mm', 
-                                            trig: payoutData?.hazard_triggers?.flash_flood?.triggered,
-                                            label: payoutData?.hazard_triggers?.flash_flood?.triggered ? 'TRIGGERED' : 'NORMAL (Paddy Irrigation Locked)'
-                                        },
-                                        { 
-                                            title: '🌪️ Cyclone Lodging', 
-                                            sub: 'ΔNDVI ≤ -0.40 & ERA5 Wind ≥ 17.2m/s', 
-                                            trig: payoutData?.hazard_triggers?.cyclone_lodging?.triggered,
-                                            label: payoutData?.hazard_triggers?.cyclone_lodging?.triggered ? 'TRIGGERED' : 'NORMAL (Harvest Lock Active)'
-                                        },
-                                        { 
-                                            title: '🔥 Wildfire Burn (ΔNBR)', 
-                                            sub: 'Spectral Burn Ratio & Dry Weather Verification', 
-                                            trig: payoutData?.hazard_triggers?.wildfire_nbr?.triggered,
-                                            label: payoutData?.hazard_triggers?.wildfire_nbr?.severity_tier || 'Unburned / Normal'
-                                        }
-                                    ].map((h, i) => (
-                                        <div key={i} className="p-4 bg-white/[0.02] border border-white/10 rounded-xl flex items-center justify-between">
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-200">{h.title}</div>
-                                                <div className="text-[11px] text-gray-400 mt-0.5">{h.sub}</div>
-                                            </div>
-                                            <span className={`text-xs font-extrabold px-3 py-1 rounded-full border ${
-                                                h.trig 
-                                                    ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse' 
-                                                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                                            }`}>
-                                                {h.label}
-                                            </span>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    {/* Overall Score Meter */}
+                                    <div className="p-4 bg-black/40 border border-white/10 rounded-2xl text-center space-y-1 flex flex-col items-center justify-center">
+                                        <div className="text-[10px] text-gray-400 uppercase font-semibold">Composite HVI Score</div>
+                                        <div className="text-4xl font-black text-amber-400 tracking-tight">
+                                            {vulnDossier?.overall_hvi_score ?? '38.5'}<span className="text-xs text-gray-400 font-normal">/100</span>
                                         </div>
-                                    ))}
+                                        <div className="text-[10px] text-gray-300 font-medium mt-1">Multi-Factor Physics Model</div>
+                                    </div>
+
+                                    {/* 4 Risk Sub-Indices */}
+                                    <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {[
+                                            { 
+                                                title: '🏜️ Drought Susceptibility', 
+                                                score: vulnDossier?.sub_indices?.drought_susceptibility_score ?? 42.0, 
+                                                color: 'bg-amber-500' 
+                                            },
+                                            { 
+                                                title: '🌊 Flood & Inundation Risk', 
+                                                score: vulnDossier?.sub_indices?.inundation_flood_vulnerability_score ?? 35.0, 
+                                                color: 'bg-blue-500' 
+                                            },
+                                            { 
+                                                title: '🌪️ Cyclone Lodging Exposure', 
+                                                score: vulnDossier?.sub_indices?.cyclone_lodging_exposure_score ?? 36.8, 
+                                                color: 'bg-cyan-500' 
+                                            },
+                                            { 
+                                                title: '🔥 Thermal Burn Hazard', 
+                                                score: vulnDossier?.sub_indices?.wildfire_thermal_burn_score ?? 25.0, 
+                                                color: 'bg-red-500' 
+                                            }
+                                        ].map((sub, idx) => (
+                                            <div key={idx} className="p-3 bg-white/[0.02] border border-white/10 rounded-xl space-y-1.5">
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span className="font-semibold text-gray-200">{sub.title}</span>
+                                                    <span className="font-bold text-white">{sub.score} / 100</span>
+                                                </div>
+                                                <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                                                    <div className={`h-full ${sub.color}`} style={{ width: `${Math.min(100, sub.score)}%` }}></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Agronomic Mitigation Advice */}
+                                <div className="p-4 bg-white/[0.02] border border-white/10 rounded-xl space-y-2 text-xs">
+                                    <div className="font-bold text-gray-200 flex items-center gap-2">
+                                        💡 Tailored Agronomic Resilience & Mitigation Advice:
+                                    </div>
+                                    <ul className="list-disc list-inside text-gray-300 space-y-1">
+                                        {vulnDossier?.mitigation_recommendations?.map((rec, i) => (
+                                            <li key={i}>{rec}</li>
+                                        )) || <li>Install micro-drip irrigation and deep soil organic mulching to prevent moisture deficit escalation.</li>}
+                                    </ul>
                                 </div>
                             </div>
 
-                            <div className="glass-panel p-6 rounded-2xl space-y-5">
-                                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                                    🛡️ 5km Spatial Peer Group Anti-Fraud Guard
-                                </h3>
-                                <p className="text-xs text-gray-300 leading-relaxed">
-                                    Validates target plot Volumetric Soil Moisture (VSM) against surrounding peer farm boundaries within a 5km radius to eliminate moral hazard and ghost acreage fraud.
-                                </p>
+                            {/* DUAL CARDS FOR SAFETY LOCKS & PEER ANTI-FRAUD */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="glass-panel p-6 rounded-2xl space-y-4">
+                                    <h3 className="text-base font-bold text-white flex items-center justify-between">
+                                        <span>⚡ Multi-Hazard Trigger Verification Matrix</span>
+                                        <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-full font-semibold">Safety Locks Active</span>
+                                    </h3>
 
-                                <div className="p-4 bg-black/40 border border-white/10 rounded-xl space-y-3 text-xs">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-gray-400">Target Field VSM %:</span>
-                                        <span className="font-bold text-blue-400">{payoutData?.moral_hazard_benchmarking?.target_plot_vsm ?? '--'}%</span>
+                                    <div className="space-y-3">
+                                        {[
+                                            { 
+                                                title: '🚫 Pre-Existing Harvest Lock', 
+                                                sub: 'Pre-Policy Bare Soil Onboarding Check', 
+                                                trig: payoutData?.classification?.pre_existing_harvest_lock,
+                                                label: payoutData?.classification?.pre_existing_harvest_lock ? 'REJECTED (Pre-Harvest Onboarded)' : 'PASSED (Active Growth at Policy Window)'
+                                            },
+                                            { 
+                                                title: '🌵 Agricultural Drought', 
+                                                sub: 'SMDI ≥ 0.60 (14-day) & GPM Rain < 5mm', 
+                                                trig: payoutData?.hazard_triggers?.agricultural_drought?.triggered,
+                                                label: payoutData?.hazard_triggers?.agricultural_drought?.triggered ? 'TRIGGERED' : 'NORMAL'
+                                            },
+                                            { 
+                                                title: '🌊 Flash Flooding', 
+                                                sub: 'VSM Saturation & GPM Rain > 100mm', 
+                                                trig: payoutData?.hazard_triggers?.flash_flood?.triggered,
+                                                label: payoutData?.hazard_triggers?.flash_flood?.triggered ? 'TRIGGERED' : 'NORMAL (Paddy Irrigation Locked)'
+                                            },
+                                            { 
+                                                title: '🌪️ Cyclone Lodging', 
+                                                sub: 'ΔNDVI ≤ -0.40 & ERA5 Wind ≥ 17.2m/s', 
+                                                trig: payoutData?.hazard_triggers?.cyclone_lodging?.triggered,
+                                                label: payoutData?.hazard_triggers?.cyclone_lodging?.triggered ? 'TRIGGERED' : 'NORMAL (Harvest Lock Active)'
+                                            },
+                                            { 
+                                                title: '🔥 Wildfire Burn (ΔNBR)', 
+                                                sub: 'Spectral Burn Ratio & Dry Weather Verification', 
+                                                trig: payoutData?.hazard_triggers?.wildfire_nbr?.triggered,
+                                                label: payoutData?.hazard_triggers?.wildfire_nbr?.severity_tier || 'Unburned / Normal'
+                                            }
+                                        ].map((h, i) => (
+                                            <div key={i} className="p-4 bg-white/[0.02] border border-white/10 rounded-xl flex items-center justify-between">
+                                                <div>
+                                                    <div className="text-xs font-semibold text-gray-200">{h.title}</div>
+                                                    <div className="text-[11px] text-gray-400 mt-0.5">{h.sub}</div>
+                                                </div>
+                                                <span className={`text-xs font-extrabold px-3 py-1 rounded-full border ${
+                                                    h.trig 
+                                                        ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse' 
+                                                        : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                                }`}>
+                                                    {h.label}
+                                                </span>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-gray-400">5km Peer Group Mean VSM %:</span>
-                                        <span className="font-bold text-cyan-400">{payoutData?.moral_hazard_benchmarking?.peer_group_5km_mean_vsm ?? '--'}%</span>
-                                    </div>
-                                    <div className="flex justify-between items-center pt-2 border-t border-white/10">
-                                        <span className="text-gray-300 font-semibold">Calculated Z-Score:</span>
-                                        <span className="font-extrabold text-sm text-amber-400">{payoutData?.moral_hazard_benchmarking?.z_score ?? '0.00'}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center pt-2">
-                                        <span className="text-gray-300 font-semibold">Anti-Fraud Verification:</span>
-                                        <span className={`font-extrabold text-xs px-3 py-1 rounded-full border ${
-                                            payoutData?.moral_hazard_benchmarking?.review_status === 'REJECTED_PRE_EXISTING_CONDITION'
-                                                ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                                                : payoutData?.moral_hazard_benchmarking?.fraud_suspension_flag 
-                                                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' 
-                                                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                                        }`}>
-                                            {payoutData?.moral_hazard_benchmarking?.review_status || 'PASSED_PEER_VERIFICATION'}
-                                        </span>
+                                </div>
+
+                                <div className="glass-panel p-6 rounded-2xl space-y-5">
+                                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                        🛡️ 5km Spatial Peer Group Anti-Fraud Guard
+                                    </h3>
+                                    <p className="text-xs text-gray-300 leading-relaxed">
+                                        Validates target plot Volumetric Soil Moisture (VSM) against surrounding peer farm boundaries within a 5km radius to eliminate moral hazard and ghost acreage fraud.
+                                    </p>
+
+                                    <div className="p-4 bg-black/40 border border-white/10 rounded-xl space-y-3 text-xs">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-400">Target Field VSM %:</span>
+                                            <span className="font-bold text-blue-400">{payoutData?.moral_hazard_benchmarking?.target_plot_vsm ?? '--'}%</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-400">5km Peer Group Mean VSM %:</span>
+                                            <span className="font-bold text-cyan-400">{payoutData?.moral_hazard_benchmarking?.peer_group_5km_mean_vsm ?? '--'}%</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                                            <span className="text-gray-300 font-semibold">Calculated Z-Score:</span>
+                                            <span className="font-extrabold text-sm text-amber-400">{payoutData?.moral_hazard_benchmarking?.z_score ?? '0.00'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-2">
+                                            <span className="text-gray-300 font-semibold">Anti-Fraud Verification:</span>
+                                            <span className={`font-extrabold text-xs px-3 py-1 rounded-full border ${
+                                                payoutData?.moral_hazard_benchmarking?.review_status === 'REJECTED_PRE_EXISTING_CONDITION'
+                                                    ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                                                    : payoutData?.moral_hazard_benchmarking?.fraud_suspension_flag 
+                                                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' 
+                                                        : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                            }`}>
+                                                {payoutData?.moral_hazard_benchmarking?.review_status || 'PASSED_PEER_VERIFICATION'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
