@@ -16,7 +16,7 @@ ee.Initialize(project='macro-truck-485506-p7')
 app = FastAPI(
     title="Hydro-Resilient Index Engine (HRIE) API",
     description="Multi-sensor satellite telemetry & physical inversion engine for automated micro-insurance underwriting",
-    version="2.6.0"
+    version="2.7.0"
 )
 
 app.add_middleware(
@@ -521,16 +521,21 @@ def verify_payout(req: PayoutVerificationRequest):
 
         wildfire_weather_verified = bool(gpm_rain_mm < 5.0)
         
+        # Section 9.1: Wildfire Dynamics (NBR Table 9.1 Verification)
         if raw_delta_nbr >= 0.66 and wildfire_weather_verified and not pre_existing_harvest_flag:
-            wildfire_severity = "High Severity (100% Payout)"
+            wildfire_severity = "High-Severity Burn (100% Payout Trigger)"
             wildfire_payout_pct = 1.00
             wildfire_triggered = True
         elif raw_delta_nbr >= 0.27 and wildfire_weather_verified and not pre_existing_harvest_flag:
-            wildfire_severity = "Moderate Severity (60% Payout)"
+            wildfire_severity = "Moderate-Severity Burn (60% Fractional Payout)"
             wildfire_payout_pct = 0.60
             wildfire_triggered = True
+        elif raw_delta_nbr >= 0.10 and wildfire_weather_verified and not pre_existing_harvest_flag:
+            wildfire_severity = "Low-Severity Burn (20% Fractional Payout)"
+            wildfire_payout_pct = 0.20
+            wildfire_triggered = True
         else:
-            wildfire_severity = "Normal / Harvest Season (No Payout Triggered)"
+            wildfire_severity = "Unburned / Baseline (No Action)"
             wildfire_payout_pct = 0.00
             wildfire_triggered = False
 
@@ -545,7 +550,7 @@ def verify_payout(req: PayoutVerificationRequest):
 
         sum_insured = req.sum_insured
         payout_amount = 0.0
-        primary_trigger_reason = "NORMAL: No Disaster Trigger Breached. Crop Verified Healthy."
+        primary_trigger_reason = "NORMAL: No Climate Anomaly Trigger Breached. Field Telemetry Normal."
 
         if pre_existing_harvest_flag:
             primary_trigger_reason = "POLICY REJECTED ($0 Payout): Field was ALREADY in a bare soil / post-harvest state prior to policy window (Pre-Existing Condition Lock)."
