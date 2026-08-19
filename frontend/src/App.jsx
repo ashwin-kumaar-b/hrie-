@@ -35,12 +35,17 @@ export default function App() {
     setPolygonCoords(coords);
   };
 
-  const handleReset = () => {
-    setCurrentStep(1);
-    setError(null);
+  const handleClearPlot = () => {
+    setPolygonCoords([]);
     setPlotData(null);
     setBoundaryData(null);
     setPayoutData(null);
+    setError(null);
+  };
+
+  const handleReset = () => {
+    setCurrentStep(1);
+    handleClearPlot();
   };
 
   const runAnalysis = async () => {
@@ -174,6 +179,7 @@ export default function App() {
                 <Step1SpatialOnboarding 
                   polygonCoords={polygonCoords}
                   onPolygonDrawn={handlePolygonDrawn}
+                  onClearPlot={handleClearPlot}
                   declaredCrop={declaredCrop}
                   onCropChange={setDeclaredCrop}
                   plotData={plotData}

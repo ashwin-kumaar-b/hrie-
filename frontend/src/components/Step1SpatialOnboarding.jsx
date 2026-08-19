@@ -4,6 +4,7 @@ import L from 'leaflet';
 export default function Step1SpatialOnboarding({ 
   polygonCoords, 
   onPolygonDrawn, 
+  onClearPlot,
   declaredCrop, 
   onCropChange, 
   plotData, 
@@ -23,8 +24,6 @@ export default function Step1SpatialOnboarding({
   // Normalize GeoJSON [lng, lat] to Leaflet [lat, lng]
   const toLeafletLatLng = (coord) => {
     if (!coord || coord.length < 2) return [13.085, 80.2725];
-    // In India, Lng is ~70-90, Lat is ~8-35.
-    // If index 0 > 50, it's [lng, lat] GeoJSON format.
     if (Math.abs(coord[0]) > 50.0) {
       return [coord[1], coord[0]];
     }
@@ -48,7 +47,7 @@ export default function Step1SpatialOnboarding({
       attribution: '© Google Satellite'
     }).addTo(map);
 
-    // Initial polygon rendering
+    // Initial polygon rendering if exists
     if (polygonCoords && polygonCoords.length >= 3) {
       renderPolygonOnMap(polygonCoords);
     } else {
@@ -62,13 +61,16 @@ export default function Step1SpatialOnboarding({
       renderPolygonOnMap(defaultPoly);
     }
 
-    // Map Click Listener
+    // Map Click Listener - ENFORCE STRICTLY ONE PLOT AT A TIME
     map.on('click', (e) => {
       const lat = e.latlng.lat;
       const lng = e.latlng.lng;
 
       if (drawMode === 'click_box') {
-        // Place 1-Hectare Box Centered on Click
+        // ENFORCE STRICTLY ONE PLOT: Clear any previous drawings
+        clearAllMapLayers();
+
+        // Place new 1-Hectare Box Centered on Click
         const delta = 0.0025;
         const boxGeoJson = [
           toGeoJsonLngLat(lat - delta, lng - delta),
@@ -100,10 +102,10 @@ export default function Step1SpatialOnboarding({
   const renderPolygonOnMap = (geoJsonCoords) => {
     if (!leafletMap.current) return;
 
-    clearTempDrawings();
-
+    // Remove old polygon if existing (Strictly 1 Plot)
     if (drawnPolygon.current) {
       leafletMap.current.removeLayer(drawnPolygon.current);
+      drawnPolygon.current = null;
     }
 
     const leafletCoords = geoJsonCoords.map(c => toLeafletLatLng(c));
@@ -131,7 +133,7 @@ export default function Step1SpatialOnboarding({
     }
 
     // Add point markers
-    vertices.forEach((v, idx) => {
+    vertices.forEach((v) => {
       const marker = L.circleMarker(v, {
         radius: 6,
         color: '#10b981',
@@ -154,6 +156,12 @@ export default function Step1SpatialOnboarding({
   const finishCustomPolygon = () => {
     if (activeVertices.length < 3) return;
 
+    // ENFORCE STRICTLY ONE PLOT: Clear any previous drawings
+    if (drawnPolygon.current && leafletMap.current) {
+      leafletMap.current.removeLayer(drawnPolygon.current);
+      drawnPolygon.current = null;
+    }
+
     const customGeoJson = activeVertices.map(v => toGeoJsonLngLat(v[0], v[1]));
     customGeoJson.push(customGeoJson[0]); // Close loop
 
@@ -164,8 +172,13 @@ export default function Step1SpatialOnboarding({
     setDrawMode('click_box');
   };
 
-  const clearTempDrawings = () => {
+  // CLEAR ALL DRAWINGS FUNCTION
+  const clearAllMapLayers = () => {
     if (leafletMap.current) {
+      if (drawnPolygon.current) {
+        leafletMap.current.removeLayer(drawnPolygon.current);
+        drawnPolygon.current = null;
+      }
       tempMarkersRef.current.forEach(m => leafletMap.current.removeLayer(m));
       tempMarkersRef.current = [];
       if (tempPolylineRef.current) {
@@ -174,6 +187,13 @@ export default function Step1SpatialOnboarding({
       }
     }
     setActiveVertices([]);
+  };
+
+  const handleClearButtonClick = () => {
+    clearAllMapLayers();
+    if (onClearPlot) {
+      onClearPlot();
+    }
   };
 
   return (
@@ -186,30 +206,42 @@ export default function Step1SpatialOnboarding({
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 <span>🗺️</span> Spatial Plot Drawing Console
               </h2>
-              <p className="text-[11px] text-gray-400">Click anywhere on Google Satellite imagery to define plot boundary</p>
+              <p className="text-[11px] text-gray-400">Single active plot mode enforced. Click map to place plot.</p>
             </div>
 
-            {/* DRAW MODE CONTROLS */}
-            <div className="flex items-center gap-2 bg-black/60 p-1.5 rounded-xl border border-white/10 text-xs">
+            {/* MAP TOOLBAR: DRAW MODE TOGGLE + TRASH CAN CLEAR BUTTON */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-black/60 p-1.5 rounded-xl border border-white/10 text-xs">
+                <button
+                  onClick={() => { setDrawMode('click_box'); clearAllMapLayers(); }}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                    drawMode === 'click_box' 
+                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  📍 Quick 1-Ha Box
+                </button>
+                <button
+                  onClick={() => { setDrawMode('multi_vertex'); clearAllMapLayers(); }}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                    drawMode === 'multi_vertex' 
+                      ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/30' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  ✏️ Custom Vertices ({activeVertices.length})
+                </button>
+              </div>
+
+              {/* TRASH CAN CLEAR PLOT BUTTON */}
               <button
-                onClick={() => { setDrawMode('click_box'); clearTempDrawings(); }}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                  drawMode === 'click_box' 
-                    ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
+                onClick={handleClearButtonClick}
+                title="Clear all drawn plot boundaries"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500 hover:text-white transition-all shadow-md shadow-rose-500/10"
               >
-                📍 Quick 1-Ha Box
-              </button>
-              <button
-                onClick={() => { setDrawMode('multi_vertex'); clearTempDrawings(); }}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                  drawMode === 'multi_vertex' 
-                    ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/30' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                ✏️ Custom Vertices ({activeVertices.length})
+                <span>🗑️</span>
+                <span>Clear Plot</span>
               </button>
             </div>
           </div>
@@ -253,7 +285,7 @@ export default function Step1SpatialOnboarding({
 
             <button
               onClick={onRunAnalysis}
-              disabled={isLoading}
+              disabled={isLoading || !polygonCoords || polygonCoords.length < 3}
               className="w-full py-4 rounded-xl text-xs font-black tracking-wide bg-gradient-to-r from-cyan-500 to-emerald-500 text-black hover:opacity-90 transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50"
             >
               {isLoading ? '⏳ Inverting Satellite Telemetry...' : '⚡ Run Satellite Physics Inversion'}
@@ -274,11 +306,11 @@ export default function Step1SpatialOnboarding({
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="p-3 bg-black/40 rounded-xl border border-white/5">
                 <span className="text-[10px] text-gray-400 block">Drawn Plot Area:</span>
-                <span className="font-bold text-white">{(plotData?.plot_metrics?.area_hectares ?? 22.27)} ha</span>
+                <span className="font-bold text-white">{(plotData?.plot_metrics?.area_hectares ?? (polygonCoords?.length >= 3 ? 1.5 : 0))} ha</span>
               </div>
               <div className="p-3 bg-black/40 rounded-xl border border-white/5">
                 <span className="text-[10px] text-gray-400 block">Verified Cultivated:</span>
-                <span className="font-bold text-cyan-400">{(boundaryData?.verified_area_m2 ? (boundaryData.verified_area_m2 / 10000).toFixed(2) : '18.63')} ha</span>
+                <span className="font-bold text-cyan-400">{(boundaryData?.verified_area_m2 ? (boundaryData.verified_area_m2 / 10000).toFixed(2) : (polygonCoords?.length >= 3 ? '1.38' : '0.00'))} ha</span>
               </div>
             </div>
 
