@@ -24,7 +24,7 @@ ChartJS.register(
 );
 
 export default function Step2PhysicsInversion({ plotData }) {
-  const [activeTab, setActiveTab] = useState('imagery'); // 'imagery' or 'guide'
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const dates = plotData?.history?.dates || ["2024-03-01", "2024-04-01", "2024-05-01", "2024-06-01", "2024-07-01", "2024-08-01", "2024-09-01", "2024-10-01", "2024-11-01", "2024-12-01"];
   const vsm = plotData?.history?.vsm || [0.28, 0.32, 0.30, 0.18, 0.14, 0.12, 0.22, 0.35, 0.38, 0.30];
@@ -85,13 +85,16 @@ export default function Step2PhysicsInversion({ plotData }) {
     }
   };
 
+  const rgbUrl = plotData?.recent_satellite_imagery?.rgb_thumbnail_url || "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&auto=format&fit=crop&q=80";
+  const ndviUrl = plotData?.recent_satellite_imagery?.ndvi_heatmap_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* SECTION HEADER FOR DERIVATIVES */}
       <div className="flex justify-between items-center px-1">
         <div>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            📡 Satellite Physical Derivatives Dashboard
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            📡 Satellite Physical Derivatives & Earth Observation Telemetry
           </h2>
           <p className="text-xs text-gray-400">Sentinel-1 SAR Radar & Sentinel-2 Optical Biophysical Inversion</p>
         </div>
@@ -171,168 +174,175 @@ export default function Step2PhysicsInversion({ plotData }) {
         </div>
       </div>
 
-      {/* Satellite Thumbnails & Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 glass-panel p-6 rounded-3xl space-y-4 border border-white/10 shadow-2xl">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            📊 Sentinel-1 & Sentinel-2 Time-Series Physics Inversion
-          </h3>
-          <div className="h-[340px]">
-            <Line data={chartData} options={chartOptions} />
+      {/* HERO FEATURE: LARGE HIGH-RES SATELLITE IMAGERY SHOWCASE GRID */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center px-1">
+          <div>
+            <h3 className="text-base font-black text-white flex items-center gap-2">
+              <span>🛰️</span> High-Resolution Earth Observation Telemetry Showcase
+            </h3>
+            <p className="text-xs text-gray-400">Side-by-side 10m spatial resolution Sentinel-2 spectral analysis. Click image or hover to inspect metadata.</p>
           </div>
+          <span className="text-xs font-mono text-cyan-300 bg-cyan-950/60 border border-cyan-500/30 px-3 py-1 rounded-full">
+            Acquired: {acqDate}
+          </span>
         </div>
 
-        {/* SATELLITE IMAGERY PANEL WITH HOVER REVEAL & COLOR LEGENDS */}
-        <div className="glass-panel p-6 rounded-3xl space-y-4 border border-white/10 shadow-2xl">
-          <div className="flex justify-between items-center border-b border-white/10 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <span>🛰️</span> GEE Satellite Imagery
-            </h3>
-            <div className="flex gap-1 bg-black/60 p-1 rounded-lg border border-white/10 text-[10px]">
-              <button
-                onClick={() => setActiveTab('imagery')}
-                className={`px-2.5 py-1 rounded font-bold transition-all ${
-                  activeTab === 'imagery' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Imagery
-              </button>
-              <button
-                onClick={() => setActiveTab('guide')}
-                className={`px-2.5 py-1 rounded font-bold transition-all ${
-                  activeTab === 'guide' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Legend & Guide
-              </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* LARGE IMAGE 1: Sentinel-2 True Color RGB */}
+          <div 
+            onClick={() => setSelectedImage({ title: 'Sentinel-2 True Color RGB (B4, B3, B2)', url: rgbUrl, type: 'rgb' })}
+            className="group glass-panel rounded-3xl overflow-hidden border border-white/15 hover:border-cyan-400 transition-all duration-300 shadow-2xl relative cursor-pointer"
+          >
+            <div className="relative h-80 overflow-hidden bg-black">
+              <img 
+                src={rgbUrl} 
+                alt="Sentinel-2 True Color RGB" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+
+              <div className="absolute top-4 left-4 flex items-center gap-2">
+                <span className="text-xs font-black px-3 py-1 rounded-full bg-black/80 text-white border border-white/30 backdrop-blur-md shadow-lg">
+                  Sentinel-2 RGB
+                </span>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 backdrop-blur-md">
+                  10m Resolution
+                </span>
+              </div>
+
+              <div className="absolute bottom-4 right-4 text-xs font-bold px-3 py-1.5 rounded-xl bg-black/80 text-cyan-400 border border-cyan-500/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                🔍 Click for Fullscreen Inspection
+              </div>
+
+              {/* HOVER OVERLAY REVEAL */}
+              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between text-slate-200">
+                <div className="space-y-2">
+                  <span className="font-black text-cyan-400 text-sm block">🛰️ Sentinel-2 MSI Level-2A True Color</span>
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    Bottom-Of-Atmosphere (BOA) reflectance composite utilizing visible light bands B4 (Red 665nm), B3 (Green 560nm), and B2 (Blue 490nm). Differentiates natural vegetation, soil moisture, and cloud cover.
+                  </p>
+                </div>
+                <div className="space-y-2 text-xs border-t border-white/10 pt-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Spectral Composite:</span>
+                    <strong className="text-white font-mono">B4 (Red) + B3 (Green) + B2 (Blue)</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Ground Sampling:</span>
+                    <strong className="text-cyan-300 font-mono">10m x 10m per pixel</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Orbit Constellation:</span>
+                    <strong className="text-white font-mono">Sentinel-2A / 2B (ESA Copernicus)</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-900/90 border-t border-white/10 flex justify-between items-center text-xs">
+              <span className="font-bold text-gray-300">Visible Light Spectrum Analysis</span>
+              <span className="text-gray-400 text-[11px]">Hover to view band parameters</span>
             </div>
           </div>
 
-          {activeTab === 'imagery' ? (
-            <div className="space-y-4">
-              {/* IMAGE 1: Sentinel-2 True Color RGB */}
-              <div className="group rounded-2xl overflow-hidden border border-white/10 relative shadow-lg cursor-pointer">
-                <img 
-                  src={plotData?.recent_satellite_imagery?.rgb_thumbnail_url || "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&auto=format&fit=crop&q=80"} 
-                  alt="Sentinel-2 True Color RGB" 
-                  className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
-                />
+          {/* LARGE IMAGE 2: Sentinel-2 NDVI Heatmap */}
+          <div 
+            onClick={() => setSelectedImage({ title: 'Sentinel-2 Vegetation Health NDVI (B8, B4)', url: ndviUrl, type: 'ndvi' })}
+            className="group glass-panel rounded-3xl overflow-hidden border border-emerald-500/30 hover:border-emerald-400 transition-all duration-300 shadow-2xl relative cursor-pointer"
+          >
+            <div className="relative h-80 overflow-hidden bg-black">
+              <img 
+                src={ndviUrl} 
+                alt="NDVI Heatmap" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
 
-                {/* Badge Label */}
-                <span className="absolute bottom-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded bg-black/80 text-white border border-white/20">
-                  Sentinel-2 RGB (B4, B3, B2)
+              <div className="absolute top-4 left-4 flex items-center gap-2">
+                <span className="text-xs font-black px-3 py-1 rounded-full bg-black/80 text-emerald-400 border border-emerald-500/40 backdrop-blur-md shadow-lg">
+                  NDVI Heatmap
                 </span>
-
-                {/* HOVER TELEMETRY REVEAL OVERLAY */}
-                <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between text-xs text-slate-200">
-                  <div className="space-y-1">
-                    <span className="font-extrabold text-cyan-400 text-xs block">🛰️ Sentinel-2 MSI Level-2A</span>
-                    <p className="text-[11px] text-gray-300">Natural True Color composite using visible spectrum bands.</p>
-                  </div>
-                  <div className="space-y-1 text-[11px]">
-                    <div className="flex justify-between border-t border-white/10 pt-1">
-                      <span className="text-gray-400">Ground Resolution:</span>
-                      <strong className="text-white font-mono">10m x 10m</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Acquisition Date:</span>
-                      <strong className="text-cyan-300 font-mono">{acqDate}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Bands:</span>
-                      <strong className="text-white font-mono">B4 (665nm), B3 (560nm), B2 (490nm)</strong>
-                    </div>
-                  </div>
-                </div>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 backdrop-blur-md">
+                  Chlorophyll Proxy
+                </span>
               </div>
 
-              {/* IMAGE 2: Sentinel-2 NDVI Heatmap */}
-              <div className="group rounded-2xl overflow-hidden border border-emerald-500/30 relative shadow-lg cursor-pointer">
-                <img 
-                  src={plotData?.recent_satellite_imagery?.ndvi_heatmap_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80"} 
-                  alt="NDVI Heatmap" 
-                  className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-
-                {/* Badge Label */}
-                <span className="absolute bottom-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded bg-black/80 text-emerald-400 border border-emerald-500/40">
-                  NDVI Heatmap (B8, B4)
-                </span>
-
-                {/* HOVER TELEMETRY REVEAL OVERLAY */}
-                <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between text-xs text-slate-200">
-                  <div className="space-y-1">
-                    <span className="font-extrabold text-emerald-400 text-xs block">🌿 Vegetation Index (NDVI)</span>
-                    <p className="text-[11px] text-gray-300">Biomass density & chlorophyll absorption proxy.</p>
-                  </div>
-                  <div className="space-y-1 text-[11px]">
-                    <div className="flex justify-between border-t border-white/10 pt-1">
-                      <span className="text-gray-400">Formula:</span>
-                      <strong className="text-emerald-300 font-mono">(B8 - B4) / (B8 + B4)</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Current Biomass Score:</span>
-                      <strong className="text-white font-mono">{latestNdvi}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Phenology Status:</span>
-                      <strong className="text-emerald-400 font-mono">ACTIVE_GROWTH</strong>
-                    </div>
-                  </div>
-                </div>
+              <div className="absolute bottom-4 right-4 text-xs font-bold px-3 py-1.5 rounded-xl bg-black/80 text-emerald-400 border border-emerald-500/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                🔍 Click for Fullscreen Inspection
               </div>
 
-              {/* NDVI COLOR SCALE BAR LEGEND */}
-              <div className="p-3 bg-black/50 border border-white/10 rounded-xl space-y-2">
-                <div className="flex justify-between text-[11px] font-bold text-gray-300">
-                  <span>0.0 Bare Soil</span>
-                  <span>0.4 Emergence</span>
-                  <span>0.8 Peak Canopy</span>
+              {/* HOVER OVERLAY REVEAL */}
+              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between text-slate-200">
+                <div className="space-y-2">
+                  <span className="font-black text-emerald-400 text-sm block">🌿 Normalized Difference Vegetation Index (NDVI)</span>
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    Calculated via Near-Infrared Band 8 (842nm) and Red Band 4 (665nm). Measures photosynthetic canopy activity and live crop biomass density.
+                  </p>
                 </div>
-                <div className="h-3 rounded-full overflow-hidden bg-gradient-to-r from-red-600 via-yellow-400 via-lime-400 to-emerald-600 border border-white/10 shadow-inner" />
-                <p className="text-[10px] text-gray-400 text-center">
-                  💡 Hover cursor over satellite imagery thumbnails to reveal telemetry details
-                </p>
+                <div className="space-y-2 text-xs border-t border-white/10 pt-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Mathematical Inversion:</span>
+                    <strong className="text-emerald-300 font-mono">(B8 - B4) / (B8 + B4)</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Current Score:</span>
+                    <strong className="text-white font-mono">{latestNdvi}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Crop Health Assessment:</span>
+                    <strong className="text-emerald-400 font-mono">ACTIVE_VEGETATIVE_GROWTH</strong>
+                  </div>
+                </div>
               </div>
             </div>
-          ) : (
-            /* LEGEND & AUDIT GUIDE TAB */
-            <div className="space-y-3 text-xs text-gray-300">
-              <div className="p-3 bg-black/40 rounded-xl border border-white/10 space-y-1">
-                <h4 className="font-bold text-white flex items-center gap-1.5 text-xs">
-                  <span>🔴</span> Red Zone (NDVI &lt; 0.20)
-                </h4>
-                <p className="text-[11px] leading-relaxed text-gray-400">
-                  Bare soil, fallow land, paved roads, or post-harvest residue. Sub-pixel masked by Ghost-Acreage Shield.
-                </p>
-              </div>
 
-              <div className="p-3 bg-black/40 rounded-xl border border-white/10 space-y-1">
-                <h4 className="font-bold text-yellow-300 flex items-center gap-1.5 text-xs">
-                  <span>🟡</span> Yellow Zone (0.20 – 0.40)
-                </h4>
-                <p className="text-[11px] leading-relaxed text-gray-400">
-                  Early crop emergence or end-of-season crop senescence. Low-to-moderate leaf area index (LAI).
-                </p>
+            {/* COLOR SCALE LEGEND BAR */}
+            <div className="p-4 bg-slate-900/90 border-t border-white/10 space-y-2">
+              <div className="flex justify-between text-[11px] font-bold text-gray-300">
+                <span className="text-red-400">0.0 Bare Soil</span>
+                <span className="text-yellow-300">0.2 Threshold</span>
+                <span className="text-lime-300">0.5 Emergence</span>
+                <span className="text-emerald-400">0.8 Peak Canopy</span>
               </div>
-
-              <div className="p-3 bg-black/40 rounded-xl border border-white/10 space-y-1">
-                <h4 className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs">
-                  <span>🟢</span> Green Zone (NDVI ≥ 0.50)
-                </h4>
-                <p className="text-[11px] leading-relaxed text-gray-400">
-                  Dense active vegetative canopy with high chlorophyll absorption. Qualifies for Salvage Advisory retention.
-                </p>
-              </div>
-
-              <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-[11px] text-cyan-300 space-y-1">
-                <strong className="text-white block font-bold">🛰️ Technical Specs:</strong>
-                <span>Sentinel-2 MSI Level-2A • 10m spatial resolution • 5-day revisit frequency • Multi-Spectral Instrument.</span>
-              </div>
+              <div className="h-3 rounded-full overflow-hidden bg-gradient-to-r from-red-600 via-yellow-400 via-lime-400 to-emerald-600 border border-white/10 shadow-inner" />
             </div>
-          )}
+          </div>
         </div>
       </div>
+
+      {/* TIME-SERIES LINE CHART SHOWCASE */}
+      <div className="glass-panel p-6 rounded-3xl space-y-4 border border-white/10 shadow-2xl">
+        <div className="flex justify-between items-center border-b border-white/10 pb-3">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            📊 Sentinel-1 SAR Radar & Sentinel-2 Optical Time-Series Physical Inversion
+          </h3>
+          <span className="text-xs font-semibold text-gray-400">12-Month Satellite Multi-Pass Records</span>
+        </div>
+        <div className="h-[340px]">
+          <Line data={chartData} options={chartOptions} />
+        </div>
+      </div>
+
+      {/* FULLSCREEN IMAGE INSPECTION MODAL */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+          <div className="relative max-w-5xl w-full glass-panel p-6 rounded-3xl space-y-4 border border-cyan-500/40">
+            <div className="flex justify-between items-center border-b border-white/10 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                🔍 High-Resolution Satellite Telemetry Inspector — {selectedImage.title}
+              </h3>
+              <button 
+                onClick={() => setSelectedImage(null)}
+                className="text-gray-400 hover:text-white font-bold w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="rounded-2xl overflow-hidden border border-white/10 h-[500px]">
+              <img src={selectedImage.url} alt={selectedImage.title} className="w-full h-full object-contain bg-black" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
