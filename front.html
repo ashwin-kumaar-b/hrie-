@@ -897,6 +897,21 @@
                                     </p>
                                 </div>
 
+                                {/* FEATURE 2: SALVAGE ADVISORY CARD */}
+                                <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl space-y-1.5 text-xs">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold text-white flex items-center gap-1.5">
+                                            <span>🌾</span> Lightweight Salvage Advisory:
+                                        </span>
+                                        <span className="font-extrabold text-[11px] px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                                            {payoutData?.salvage_advisory?.status_label || '🌾 Early Harvest Advised (35% Salvage Offset)'}
+                                        </span>
+                                    </div>
+                                    <p className="text-gray-300 leading-relaxed">
+                                        {payoutData?.salvage_advisory?.advisory_notes || 'High crop biomass (NDVI >= 0.50) indicates crops retain commercial value. Immediate early harvest advised before desiccative lodging escalation.'}
+                                    </p>
+                                </div>
+
                                 <div className="pt-2 flex justify-between items-center text-xs text-gray-400">
                                     <span>Settlement Latency Acceleration: <strong className="text-emerald-400">80% Time Reduction</strong></span>
                                     <span>Reinsurance Liquidity Audit: <strong className="text-cyan-400 font-mono">PASSED_GEE_TELEMETRY</strong></span>
