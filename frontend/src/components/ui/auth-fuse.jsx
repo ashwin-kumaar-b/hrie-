@@ -363,13 +363,32 @@ export function AuthUI({ onLoginSuccess }) {
           </span>
         </div>
 
-        {/* MOON (Top Right Celestial Body) */}
+        {/* EARTH ORBIT 1: Sentinel-1 SAR Radar Satellite */}
+        <div className="absolute bottom-[280px] left-[80px] z-10 animate-bounce duration-3000">
+          <div className="p-3 bg-slate-950/80 rounded-2xl border border-cyan-500/50 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.3)] flex items-center gap-2">
+            <Satellite className="w-6 h-6 text-cyan-400 animate-spin duration-10000" />
+            <div>
+              <span className="text-[10px] font-black text-white block">Sentinel-1 SAR Radar</span>
+              <span className="text-[9px] font-mono text-cyan-300">Earth LEO Orbit (C-Band)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* EARTH ORBIT 2: Sentinel-2 MSI Optical Satellite */}
+        <div className="absolute bottom-[160px] left-[320px] z-10 animate-pulse">
+          <div className="p-3 bg-slate-950/80 rounded-2xl border border-emerald-500/50 backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center gap-2">
+            <Satellite className="w-6 h-6 text-emerald-400" />
+            <div>
+              <span className="text-[10px] font-black text-white block">Sentinel-2 MSI Optical</span>
+              <span className="text-[9px] font-mono text-emerald-300">Earth LEO Orbit (10m NDVI)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* MOON (Top Right Celestial Body — Label Removed) */}
         <div className="absolute top-16 right-16 w-36 h-36 rounded-full bg-gradient-to-br from-slate-200 via-slate-400 to-slate-700 shadow-[0_0_50px_rgba(255,255,255,0.25)] border border-white/40 flex items-center justify-center">
           <div className="w-8 h-8 rounded-full bg-slate-600/40 absolute top-4 left-6 shadow-inner" />
           <div className="w-6 h-6 rounded-full bg-slate-600/30 absolute bottom-6 right-8 shadow-inner" />
-          <span className="absolute -bottom-6 text-[11px] font-mono font-bold text-slate-300 bg-black/60 px-2.5 py-0.5 rounded-full border border-white/20">
-            🌕 Moon Target
-          </span>
         </div>
 
         {/* ROCKET TRAVELING FROM EARTH TO MOON */}
@@ -378,27 +397,6 @@ export function AuthUI({ onLoginSuccess }) {
             {/* Rocket Exhaust Trail */}
             <div className="w-24 h-1.5 bg-gradient-to-r from-transparent via-amber-500 to-rose-500 rounded-full blur-[1px] animate-pulse" />
             <Rocket className="w-10 h-10 text-cyan-300 drop-shadow-[0_0_15px_rgba(6,182,212,0.9)]" />
-          </div>
-        </div>
-
-        {/* ORBITING SATELLITES */}
-        <div className="absolute top-1/3 left-1/4 animate-bounce duration-3000">
-          <div className="p-3 bg-black/60 rounded-2xl border border-cyan-500/40 backdrop-blur-md shadow-xl flex items-center gap-2">
-            <Satellite className="w-6 h-6 text-cyan-400 animate-spin duration-10000" />
-            <div>
-              <span className="text-[10px] font-black text-white block">Sentinel-1 SAR Radar</span>
-              <span className="text-[9px] font-mono text-cyan-300">Active C-Band Inversion</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute bottom-1/3 right-1/4 animate-pulse">
-          <div className="p-3 bg-black/60 rounded-2xl border border-emerald-500/40 backdrop-blur-md shadow-xl flex items-center gap-2">
-            <Satellite className="w-6 h-6 text-emerald-400" />
-            <div>
-              <span className="text-[10px] font-black text-white block">Sentinel-2 MSI Optical</span>
-              <span className="text-[9px] font-mono text-emerald-300">10m Biomass NDVI</span>
-            </div>
           </div>
         </div>
 
