@@ -9,7 +9,7 @@ import Step3VulnerabilityScoring from './components/Step3VulnerabilityScoring';
 import Step4ActuarialPayout from './components/Step4ActuarialPayout';
 import PlotAnalysisSkeleton from './components/PlotAnalysisSkeleton';
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = 'http://127.0.0.1:8001';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState(1);
