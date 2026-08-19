@@ -88,6 +88,14 @@ export default function Step2PhysicsInversion({ plotData }) {
   const rgbUrl = plotData?.recent_satellite_imagery?.rgb_thumbnail_url || "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&auto=format&fit=crop&q=80";
   const ndviUrl = plotData?.recent_satellite_imagery?.ndvi_heatmap_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80";
 
+  const getNdviStatus = (val) => {
+    if (val < 0.20) return "Bare Soil / Desert";
+    if (val < 0.40) return "Sparse Scrub / Early Emergence";
+    return "Active Growth";
+  };
+
+  const ndviStatusText = getNdviStatus(latestNdvi);
+
   return (
     <div className="space-y-8">
       {/* SECTION HEADER FOR DERIVATIVES */}
@@ -125,8 +133,14 @@ export default function Step2PhysicsInversion({ plotData }) {
         <div className="glass-panel p-5 rounded-2xl border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 to-slate-900/60 shadow-xl space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-xs font-bold text-gray-300">NDVI Biomass Index</span>
-            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-              Active Growth
+            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+              latestNdvi < 0.20 
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' 
+                : latestNdvi < 0.40 
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' 
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+            }`}>
+              {ndviStatusText}
             </span>
           </div>
           <div className="text-3xl font-black text-emerald-400 font-mono tracking-tight">

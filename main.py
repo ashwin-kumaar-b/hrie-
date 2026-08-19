@@ -223,11 +223,19 @@ def modified_dubois_model(sigma_soil_linear_vv: float, ndvi: float, theta_rad: f
     vegetation_dielectric_contribution = 15.0 * max(0.05, ndvi)
     
     epsilon = 1.5 + backscatter_term + vegetation_dielectric_contribution
+
+    # BUGFIX 1: Sand Dielectric Overestimation Correction
+    # C-band SAR radar penetrates dry hyper-arid sand causing volume scattering.
+    # When optical NDVI < 0.20 (indicating bare/desert soil), cap & correct dielectric constant epsilon.
+    if ndvi < 0.20 and epsilon > 5.0:
+        epsilon = max(2.5, epsilon * 0.25)
+
     return max(2.5, min(epsilon, 38.0))
 
 def topp_vsm_conversion(epsilon: float) -> float:
     vsm = -0.053 + (0.0292 * epsilon) - (0.00055 * (epsilon ** 2)) + (0.0000043 * (epsilon ** 3))
-    return max(0.05, min(round(vsm, 4), 0.55))
+    # Bounded between 2% (true desert sand floor) and 55% (saturation)
+    return max(0.02, min(round(vsm, 4), 0.55))
 
 # ------------------------------------------------------------------
 # Multi-Factor Hydro-Vulnerability Assessment Calculator
@@ -238,12 +246,20 @@ def calculate_plot_vulnerability(elevation: float, latest_smdi: float, latest_vs
     smdi = latest_smdi if latest_smdi is not None else 0.20
     vsm = latest_vsm if latest_vsm is not None else 0.25
 
-    drought_score = min(100.0, max(0.0, (smdi * 70.0) + ((0.35 - vsm) * 100.0)))
-    
-    elev_risk = max(0.0, (200.0 - elev) / 200.0 * 40.0)
-    vsm_flood_risk = max(0.0, (vsm - 0.20) * 150.0)
-    rain_flood_risk = min(40.0, (rain_mm / 150.0) * 40.0)
-    inundation_score = min(100.0, max(0.0, elev_risk + vsm_flood_risk + rain_flood_risk))
+    # BUGFIX 3: Recalibrate Drought vs Flood Risk for Hyper-Arid / Low VSM Terrain
+    # Desert soils (VSM < 0.10) must trigger high Drought Susceptibility and near-zero Flood Vulnerability.
+    if vsm < 0.10 or smdi >= 0.50:
+        drought_score = max(78.0, min(100.0, (smdi * 85.0) + ((0.25 - vsm) * 200.0)))
+        elev_risk = max(0.0, (200.0 - elev) / 200.0 * 10.0)
+        vsm_flood_risk = 0.0 # Dry sand absorbs initial rainfall completely
+        rain_flood_risk = min(30.0, (rain_mm / 150.0) * 30.0) if rain_mm >= 50.0 else 0.0
+        inundation_score = min(100.0, max(0.0, elev_risk + vsm_flood_risk + rain_flood_risk))
+    else:
+        drought_score = min(100.0, max(0.0, (smdi * 70.0) + ((0.35 - vsm) * 100.0)))
+        elev_risk = max(0.0, (200.0 - elev) / 200.0 * 40.0)
+        vsm_flood_risk = max(0.0, (vsm - 0.20) * 150.0)
+        rain_flood_risk = min(40.0, (rain_mm / 150.0) * 40.0)
+        inundation_score = min(100.0, max(0.0, elev_risk + vsm_flood_risk + rain_flood_risk))
 
     wind_score = min(100.0, max(0.0, (wind_ms / 25.0) * 100.0))
     dry_spell_bonus = 40.0 if rain_mm < 5.0 else 10.0
@@ -660,12 +676,12 @@ def analyze_plot(plot: PlotBoundary):
             rain_mm=weather["gpm_48h_rain_mm"]
         )
 
-        if latest_ndvi is not None and latest_ndvi < 0.18:
-            phenology_status = "BARE_SOIL_POST_HARVEST"
-        elif latest_ndvi is not None and latest_ndvi >= 0.35:
-            phenology_status = "ACTIVE_VEGETATIVE_GROWTH"
+        if latest_ndvi is not None and latest_ndvi < 0.20:
+            phenology_status = "Bare Soil / Desert"
+        elif latest_ndvi is not None and latest_ndvi < 0.40:
+            phenology_status = "Sparse Scrub / Early Emergence"
         else:
-            phenology_status = "EARLY_EMERGENCE_OR_SENESCENCE"
+            phenology_status = "Active Growth"
 
         return {
             "status": "success",
