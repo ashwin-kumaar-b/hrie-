@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from './components/Navbar';
 import StepIndicator from './components/StepIndicator';
 import BlueprintModal from './components/BlueprintModal';
@@ -6,6 +7,7 @@ import Step1SpatialOnboarding from './components/Step1SpatialOnboarding';
 import Step2PhysicsInversion from './components/Step2PhysicsInversion';
 import Step3VulnerabilityScoring from './components/Step3VulnerabilityScoring';
 import Step4ActuarialPayout from './components/Step4ActuarialPayout';
+import PlotAnalysisSkeleton from './components/PlotAnalysisSkeleton';
 
 const API_BASE = 'http://127.0.0.1:8000';
 
@@ -13,6 +15,7 @@ export default function App() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isBlueprintOpen, setIsBlueprintOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [declaredCrop, setDeclaredCrop] = useState('rice');
   const [sumInsured, setSumInsured] = useState(10000);
 
@@ -34,6 +37,7 @@ export default function App() {
 
   const handleReset = () => {
     setCurrentStep(1);
+    setError(null);
     setPlotData(null);
     setBoundaryData(null);
     setPayoutData(null);
@@ -41,13 +45,17 @@ export default function App() {
 
   const runAnalysis = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      // 1. Analyze plot telemetry
+      // 1. Analyze plot telemetry (FastAPI / GEE WCM + MDM physical inversion)
       const resPlot = await fetch(`${API_BASE}/api/hrie/analyze-plot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ coordinates: polygonCoords })
       });
+      if (!resPlot.ok) {
+        throw new Error(`Satellite Ingestion API returned HTTP status ${resPlot.status}`);
+      }
       const dataPlot = await resPlot.json();
       setPlotData(dataPlot);
 
@@ -57,6 +65,9 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ coordinates: polygonCoords, declared_crop: declaredCrop })
       });
+      if (!resBoundary.ok) {
+        throw new Error(`Boundary Verification API returned HTTP status ${resBoundary.status}`);
+      }
       const dataBoundary = await resBoundary.json();
       setBoundaryData(dataBoundary);
 
@@ -66,6 +77,7 @@ export default function App() {
       setCurrentStep(2);
     } catch (err) {
       console.error('Analysis error:', err);
+      setError(err.message || 'Satellite telemetry ingestion timed out or failed. Please retry.');
     } finally {
       setIsLoading(false);
     }
@@ -82,6 +94,9 @@ export default function App() {
           declared_crop: cropVal
         })
       });
+      if (!res.ok) {
+        throw new Error(`Payout Verification API returned HTTP status ${res.status}`);
+      }
       const data = await res.json();
       setPayoutData(data);
     } catch (err) {
@@ -109,65 +124,116 @@ export default function App() {
           onSelectStep={(step) => setCurrentStep(step)} 
         />
 
-        {currentStep === 1 && (
-          <Step1SpatialOnboarding 
-            polygonCoords={polygonCoords}
-            onPolygonDrawn={handlePolygonDrawn}
-            declaredCrop={declaredCrop}
-            onCropChange={setDeclaredCrop}
-            plotData={plotData}
-            boundaryData={boundaryData}
-            isLoading={isLoading}
-            onRunAnalysis={runAnalysis}
-          />
-        )}
+        {/* ERROR ALERT BANNER WITH RETRY */}
+        <AnimatePresence>
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-4 text-xs text-rose-300 shadow-xl"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-base">⚠️</span>
+                <div>
+                  <strong className="font-bold text-white block">Satellite Telemetry Error</strong>
+                  <span>{error}</span>
+                </div>
+              </div>
+              <button
+                onClick={runAnalysis}
+                className="px-4 py-2 rounded-xl font-bold bg-rose-500 text-white hover:bg-rose-400 transition-all shadow-lg shadow-rose-500/20 shrink-0"
+              >
+                🔄 Retry Analysis
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {currentStep === 2 && (
-          <Step2PhysicsInversion plotData={plotData} />
-        )}
+        {/* STEP CONTENT / SKELETON FADE SWAP */}
+        <AnimatePresence mode="wait">
+          {isLoading ? (
+            <motion.div 
+              key="skeleton"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              <PlotAnalysisSkeleton />
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`step-${currentStep}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25 }}
+            >
+              {currentStep === 1 && (
+                <Step1SpatialOnboarding 
+                  polygonCoords={polygonCoords}
+                  onPolygonDrawn={handlePolygonDrawn}
+                  declaredCrop={declaredCrop}
+                  onCropChange={setDeclaredCrop}
+                  plotData={plotData}
+                  boundaryData={boundaryData}
+                  isLoading={isLoading}
+                  onRunAnalysis={runAnalysis}
+                />
+              )}
 
-        {currentStep === 3 && (
-          <Step3VulnerabilityScoring plotData={plotData} />
-        )}
+              {currentStep === 2 && (
+                <Step2PhysicsInversion plotData={plotData} />
+              )}
 
-        {currentStep === 4 && (
-          <Step4ActuarialPayout 
-            sumInsured={sumInsured}
-            onSumInsuredChange={handleSumInsuredChange}
-            payoutData={payoutData}
-          />
-        )}
+              {currentStep === 3 && (
+                <Step3VulnerabilityScoring plotData={plotData} />
+              )}
+
+              {currentStep === 4 && (
+                <Step4ActuarialPayout 
+                  sumInsured={sumInsured}
+                  onSumInsuredChange={handleSumInsuredChange}
+                  payoutData={payoutData}
+                />
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* STEP NAVIGATION CONTROLS */}
-        <div className="flex justify-between items-center pt-6 border-t border-white/10 mt-8">
-          <button
-            onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
-            disabled={currentStep === 1}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition-all ${
-              currentStep === 1 
-                ? 'opacity-40 cursor-not-allowed bg-white/5 border-white/5 text-gray-500' 
-                : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
-            }`}
-          >
-            ← Previous Step
-          </button>
+        {!isLoading && (
+          <div className="flex justify-between items-center pt-6 border-t border-white/10 mt-8">
+            <button
+              onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
+              disabled={currentStep === 1}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                currentStep === 1 
+                  ? 'opacity-40 cursor-not-allowed bg-white/5 border-white/5 text-gray-500' 
+                  : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+              }`}
+            >
+              ← Previous Step
+            </button>
 
-          <div className="text-xs text-gray-400 font-semibold">
-            Step {currentStep} of 4
+            <div className="text-xs text-gray-400 font-semibold">
+              Step {currentStep} of 4
+            </div>
+
+            <button
+              onClick={() => setCurrentStep(prev => Math.min(4, prev + 1))}
+              disabled={currentStep === 4}
+              className={`px-6 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                currentStep === 4 
+                  ? 'opacity-40 cursor-not-allowed bg-white/5 border-white/5 text-gray-500' 
+                  : 'bg-gradient-to-r from-cyan-500 to-emerald-500 border-emerald-400 text-black hover:opacity-90 shadow-lg shadow-emerald-500/20'
+              }`}
+            >
+              Next Step →
+            </button>
           </div>
-
-          <button
-            onClick={() => setCurrentStep(prev => Math.min(4, prev + 1))}
-            disabled={currentStep === 4}
-            className={`px-6 py-2.5 rounded-xl text-xs font-bold border transition-all ${
-              currentStep === 4 
-                ? 'opacity-40 cursor-not-allowed bg-white/5 border-white/5 text-gray-500' 
-                : 'bg-gradient-to-r from-cyan-500 to-emerald-500 border-emerald-400 text-black hover:opacity-90 shadow-lg shadow-emerald-500/20'
-            }`}
-          >
-            Next Step →
-          </button>
-        </div>
+        )}
       </main>
 
       <BlueprintModal 
