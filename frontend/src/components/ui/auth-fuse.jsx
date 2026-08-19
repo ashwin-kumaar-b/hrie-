@@ -354,11 +354,22 @@ export function AuthUI({ onLoginSuccess }) {
           <ellipse cx="80%" cy="20%" rx="400" ry="220" fill="none" stroke="#10b981" strokeWidth="1.5" strokeDasharray="4 4" />
         </svg>
 
-        {/* EARTH (Bottom Left Cosmic Sphere) */}
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-gradient-to-br from-cyan-600 via-blue-700 to-indigo-950 shadow-[0_0_80px_rgba(6,182,212,0.4)] border border-cyan-400/30 flex items-center justify-center animate-pulse duration-10000">
-          <div className="w-full h-full rounded-full opacity-40 bg-[radial-gradient(circle_at_30%_30%,_rgba(255,255,255,0.8),_transparent)]" />
-          <Globe className="w-48 h-48 text-cyan-200/40 absolute animate-spin duration-30000" />
-          <span className="absolute bottom-16 right-16 text-xs font-mono font-bold text-cyan-300 bg-black/60 px-3 py-1 rounded-full border border-cyan-500/40">
+        {/* REALISTIC EARTH PLANET (Bottom Left Cosmic Sphere) */}
+        <div className="absolute -bottom-28 -left-28 w-[380px] h-[380px] rounded-full shadow-[0_0_120px_rgba(56,189,248,0.45)] border border-cyan-400/40 overflow-hidden group">
+          {/* Earth Texture Surface with Ultra-Slow Rotation (160s) */}
+          <div 
+            className="w-full h-full rounded-full bg-cover bg-center animate-[slowEarthSpin_160s_linear_infinite]"
+            style={{
+              backgroundImage: `url('https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=1000&auto=format&fit=crop&q=80')`
+            }}
+          />
+
+          {/* 3D Atmospheric Lighting & Limb Glow Overlay */}
+          <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_35%_35%,transparent_35%,rgba(2,6,23,0.85)_100%)] pointer-events-none" />
+          <div className="absolute inset-0 rounded-full shadow-[inset_-25px_-25px_50px_rgba(0,0,0,0.9)] pointer-events-none" />
+          <div className="absolute inset-0 rounded-full shadow-[inset_15px_15px_30px_rgba(56,189,248,0.3)] pointer-events-none" />
+
+          <span className="absolute bottom-20 right-20 text-xs font-mono font-bold text-cyan-300 bg-slate-950/80 px-3.5 py-1 rounded-full border border-cyan-500/40 backdrop-blur-md shadow-lg z-10">
             🌍 Earth Base
           </span>
         </div>
@@ -412,8 +423,16 @@ export function AuthUI({ onLoginSuccess }) {
           </blockquote>
         </div>
 
-        {/* Custom CSS Keyframe Animation for Rocket Path */}
+        {/* Custom CSS Keyframe Animation for Rocket Path & Earth Rotation */}
         <style>{`
+          @keyframes slowEarthSpin {
+            from {
+              transform: rotate(0deg);
+            }
+            to {
+              transform: rotate(360deg);
+            }
+          }
           @keyframes rocketTravel {
             0% {
               transform: translate(0px, 0px) scale(0.7);
